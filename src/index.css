@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-lr-sidebar: #0a0a0a;
+  --color-lr-green: #00c853;
+  --color-lr-green-hover: #00e676;
+  --color-lr-nav-active: #c8f7dc;
+  --color-lr-purple-soft: #ede9fe;
+  --color-lr-purple-btn: #ddd6fe;
+  --color-lr-muted: #6b7280;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  background: #f3f4f6;
+}
