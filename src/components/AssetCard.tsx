@@ -1,6 +1,17 @@
-import { BarChart3, MoreVertical, PieChart } from 'lucide-react'
+import { BarChart3, Database, Layers, LayoutGrid, MoreVertical, PieChart, ShoppingBag, ShoppingCart, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { AssetTag, SegmentRow } from '../types'
+
+const tagIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  'Marketplace': ShoppingCart,
+  'My Data': UserRound,
+  'Clean Room': LayoutGrid,
+  'Clean Room Data': LayoutGrid,
+  'Built Segment': Layers,
+  'Built segment': Layers,
+  'Datasets': Database,
+  'Marketplace Recommendations': ShoppingBag,
+}
 
 const tagStyles: Record<
   AssetTag['variant'],
@@ -96,14 +107,18 @@ export function AssetCard({ row, selected, onSelect, onRemove, onTurnIntoGroup }
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {row.tags.map((t) => (
-            <span
-              key={t.label}
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${tagStyles[t.variant].bg} ${tagStyles[t.variant].text}`}
-            >
-              {t.label}
-            </span>
-          ))}
+          {row.tags.map((t) => {
+            const SourceIcon = tagIcons[t.label]
+            return (
+              <span
+                key={t.label}
+                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${tagStyles[t.variant].bg} ${tagStyles[t.variant].text}`}
+              >
+                {SourceIcon && <SourceIcon className="h-3 w-3 shrink-0" />}
+                {t.label}
+              </span>
+            )
+          })}
         </div>
       </div>
     </div>

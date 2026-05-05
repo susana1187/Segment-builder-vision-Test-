@@ -24,12 +24,12 @@ export function FooterBar({
   ]
 
   return (
-    <footer className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-white px-6 py-3">
+    <footer className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-gray-200 bg-white px-6 py-4">
       <div className="flex flex-wrap gap-8">
         {items.map((it) => (
           <div key={it.label} className="text-center sm:text-left">
-            <div className="text-lg font-semibold tabular-nums text-gray-900">{it.value}</div>
-            <div className="text-[11px] text-gray-500">{it.label}</div>
+            <div className="text-2xl font-semibold tabular-nums text-gray-900">{it.value}</div>
+            <div className="text-xs text-gray-500">{it.label}</div>
           </div>
         ))}
       </div>

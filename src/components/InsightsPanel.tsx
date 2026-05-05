@@ -1,10 +1,27 @@
-import { ChevronDown, Info, PieChart, RefreshCw, Search, X } from 'lucide-react'
+import { ChevronDown, Info, PieChart, Plus, RefreshCw, Search, X } from 'lucide-react'
 import { useState } from 'react'
 
 type Tab = 'details' | 'split' | 'overlaps'
 
 type Props = {
   onClose: () => void
+}
+
+const MY_SEGMENT_SIZE = 35000
+
+const availableSegments = [
+  { id: 's1', label: 'Loyalty Members — Q1',    size: 120000, overlapPct: 36, color: '#a78bfa' },
+  { id: 's2', label: 'High Value Buyers',         size:  45000, overlapPct: 58, color: '#fb923c' },
+  { id: 's3', label: 'Email Subscribers',         size:  89000, overlapPct: 22, color: '#34d399' },
+  { id: 's4', label: 'App Users — iOS',           size:  67000, overlapPct: 14, color: '#f472b6' },
+  { id: 's5', label: 'CRM Upload Q2',             size:  34000, overlapPct: 71, color: '#38bdf8' },
+  { id: 's6', label: 'Retargeting Pool',          size: 200000, overlapPct:  8, color: '#facc15' },
+]
+
+function fmt(n: number) {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${Math.round(n / 1000)}K`
+  return String(n)
 }
 
 const platforms = [
@@ -31,6 +48,8 @@ export function InsightsPanel({ onClose }: Props) {
     'Potential_Car_Buyers_Control',
   ])
   const [splitPcts, setSplitPcts] = useState([50, 50])
+  const [overlapIds, setOverlapIds] = useState<string[]>(['s1', 's2'])
+  const [overlapSearch, setOverlapSearch] = useState('')
 
   const filteredPlatforms = platforms.filter((p) =>
     p.toLowerCase().includes(platformSearch.toLowerCase()),
@@ -67,7 +86,7 @@ export function InsightsPanel({ onClose }: Props) {
   return (
     <aside className="flex h-full w-[550px] shrink-0 flex-col border-l border-gray-200 bg-white shadow-xl">
       {/* Tab bar */}
-      <div className="flex items-center justify-between border-b border-gray-100 px-3 py-2">
+      <div className="flex items-center justify-between border-b border-gray-100 px-3 py-0">
         <div className="flex gap-4 text-sm">
           {(
             [
@@ -80,7 +99,7 @@ export function InsightsPanel({ onClose }: Props) {
               key={id}
               type="button"
               onClick={() => setTab(id)}
-              className={`border-b-2 pb-2 font-medium ${
+              className={`border-b-2 pt-4 pb-4 font-medium ${
                 tab === id
                   ? 'border-[#00c853] text-gray-900'
                   : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -252,61 +271,160 @@ export function InsightsPanel({ onClose }: Props) {
         )}
 
         {/* ── Data Overlaps ── */}
-        {tab === 'overlaps' && (
-          <div className="p-4 space-y-4">
-            <div className="space-y-2">
-              <OverlapRow label="Select Overlap Asset" value="Asset 1" pct="36%" />
-              <OverlapRow label="Select Overlap Asset" value="Asset 2" pct="36%" />
-              <button type="button" className="text-xs font-medium text-[#00c853] hover:underline">
-                Add New Data overlap
-              </button>
-            </div>
-            <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
-              <p className="mb-3 text-center text-xs font-medium text-gray-600">
-                Audience overlap preview
-              </p>
-              <VennDiagram />
-              <div className="mt-4 flex flex-wrap justify-center gap-3 text-[11px]">
-                <Legend color="#c4b5fd" label="asset 1" />
-                <Legend color="#fdba74" label="asset 2" />
-                <Legend color="#86efac" label="Loyalty_members_multiple_purchases" />
+        {tab === 'overlaps' && (() => {
+          const selected = availableSegments.filter((s) => overlapIds.includes(s.id))
+          const unselected = availableSegments.filter(
+            (s) => !overlapIds.includes(s.id) &&
+              s.label.toLowerCase().includes(overlapSearch.toLowerCase()),
+          )
+          const avgOverlap = selected.length
+            ? Math.round(selected.reduce((a, s) => a + s.overlapPct, 0) / selected.length)
+            : 0
+          const uniquePct = 100 - Math.min(100, selected.reduce((a, s) => a + s.overlapPct * 0.4, 0))
+
+          return (
+            <div className="p-4 space-y-5">
+              {/* Summary stats */}
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { label: 'Your Segment', value: fmt(MY_SEGMENT_SIZE), sub: 'total size' },
+                  { label: 'Avg Overlap', value: `${avgOverlap}%`, sub: 'across compared' },
+                  { label: 'Unique Reach', value: `${Math.round(uniquePct)}%`, sub: 'no overlap' },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-center">
+                    <p className="text-xl font-bold text-gray-900">{s.value}</p>
+                    <p className="text-xs text-gray-500">{s.label}</p>
+                  </div>
+                ))}
               </div>
+
+              {/* Add segment */}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Compare against</p>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search segments to compare..."
+                    value={overlapSearch}
+                    onChange={(e) => setOverlapSearch(e.target.value)}
+                    className="w-full rounded-md border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm placeholder:text-gray-400 focus:border-[#00c853] focus:outline-none focus:ring-1 focus:ring-[#00c853]"
+                  />
+                </div>
+                {overlapSearch && unselected.length > 0 && (
+                  <div className="mt-1 rounded-md border border-gray-200 bg-white shadow-sm">
+                    {unselected.map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => { setOverlapIds((p) => [...p, s.id]); setOverlapSearch('') }}
+                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                          {s.label}
+                        </span>
+                        <Plus className="h-3.5 w-3.5 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Overlap cards */}
+              <div className="space-y-3">
+                {selected.map((s) => (
+                  <div key={s.id} className="rounded-lg border border-gray-100 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.color }} />
+                        <p className="truncate text-sm font-medium text-gray-800">{s.label}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setOverlapIds((p) => p.filter((id) => id !== s.id))}
+                        className="shrink-0 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="mt-2.5 flex items-center gap-3">
+                      <div className="flex-1 overflow-hidden rounded-full bg-gray-100" style={{ height: 6 }}>
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${s.overlapPct}%`, backgroundColor: s.color }}
+                        />
+                      </div>
+                      <span className="w-10 shrink-0 text-right text-xs font-semibold text-gray-700">
+                        {s.overlapPct}%
+                      </span>
+                    </div>
+                    <div className="mt-1 flex justify-between text-[10px] text-gray-400">
+                      <span>Overlap with your segment</span>
+                      <span>{fmt(Math.round(MY_SEGMENT_SIZE * s.overlapPct / 100))} shared</span>
+                    </div>
+                    <div className="mt-1 text-[10px] text-gray-400">
+                      Segment size: {fmt(s.size)}
+                    </div>
+                  </div>
+                ))}
+                {selected.length === 0 && (
+                  <p className="py-4 text-center text-xs text-gray-400">
+                    Search and add segments above to see overlap data.
+                  </p>
+                )}
+              </div>
+
+              {/* Venn */}
+              {selected.length >= 2 && (
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                  <p className="mb-3 text-center text-xs font-medium text-gray-600">Audience overlap preview</p>
+                  <DynamicVenn segments={selected.slice(0, 3)} />
+                  <div className="mt-3 flex flex-wrap justify-center gap-3 text-[11px]">
+                    {selected.slice(0, 3).map((s) => (
+                      <Legend key={s.id} color={s.color} label={s.label} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     </aside>
-  )
-}
-
-function OverlapRow({ label, value, pct }: { label: string; value: string; pct: string }) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-2">
-      <span className="text-xs text-gray-500">{label}</span>
-      <select className="rounded border border-gray-200 bg-white px-2 py-1 text-xs font-medium">
-        <option>{value}</option>
-      </select>
-      <span className="text-xs font-semibold text-gray-900">{pct}</span>
-      <button type="button" className="ml-auto text-gray-400 hover:text-gray-600">×</button>
-    </div>
   )
 }
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-gray-700">
-      <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: color }} />
-      {label}
+      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+      <span className="max-w-[120px] truncate">{label}</span>
     </span>
   )
 }
 
-function VennDiagram() {
+function DynamicVenn({ segments }: { segments: typeof availableSegments }) {
+  const positions = [
+    { cx: 115, cy: 95 },
+    { cx: 205, cy: 95 },
+    { cx: 160, cy: 148 },
+  ]
   return (
     <svg viewBox="0 0 320 200" className="mx-auto h-44 w-full max-w-[320px]" aria-hidden>
-      <circle cx="115" cy="100" r="72" fill="#c4b5fd" fillOpacity={0.55} stroke="#a78bfa" />
-      <circle cx="205" cy="100" r="72" fill="#fdba74" fillOpacity={0.5} stroke="#fb923c" />
-      <circle cx="160" cy="135" r="56" fill="#86efac" fillOpacity={0.55} stroke="#34d399" />
+      {segments.map((s, i) => (
+        <circle
+          key={s.id}
+          cx={positions[i]?.cx ?? 160}
+          cy={positions[i]?.cy ?? 100}
+          r={62}
+          fill={s.color}
+          fillOpacity={0.45}
+          stroke={s.color}
+          strokeOpacity={0.8}
+          strokeWidth={1.5}
+        />
+      ))}
     </svg>
   )
 }
