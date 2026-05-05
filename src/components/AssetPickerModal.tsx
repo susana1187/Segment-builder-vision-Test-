@@ -313,14 +313,14 @@ type Props = {
 }
 
 export function AssetPickerModal({ open, onClose, onConfirm }: Props) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['marketplace']))
-  const [selectedId, setSelectedId] = useState<string>('aiq-edu')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [overviewOpen, setOverviewOpen] = useState(false)
   const [query, setQuery] = useState('')
 
   if (!open) return null
 
-  const selected = allLeaves.find((l) => l.id === selectedId) ?? allLeaves[0]
+  const selected = selectedId ? allLeaves.find((l) => l.id === selectedId) ?? null : null
 
   const normalizedQuery = query.trim().toLowerCase()
   const visibleTree = normalizedQuery
@@ -423,6 +423,11 @@ export function AssetPickerModal({ open, onClose, onConfirm }: Props) {
 
         {/* Right — detail */}
         <div className="flex-1 overflow-y-auto p-5">
+          {!selected && (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              Select an asset from the list to see details
+            </div>
+          )}
           {selected && (
             <>
               <div className="flex items-start gap-3 border-b border-gray-100 pb-4">
