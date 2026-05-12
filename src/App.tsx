@@ -5,24 +5,31 @@ import { AssetCard } from './components/AssetCard'
 import { AssetPickerModal } from './components/AssetPickerModal'
 import { AssistantPanel } from './components/AssistantPanel'
 import { FooterBar } from './components/FooterBar'
+import { GroupCard } from './components/GroupCard'
 import { InsightsPanel } from './components/InsightsPanel'
 import { LogicOperator } from './components/LogicOperator'
 import { Sidebar } from './components/Sidebar'
-import type { SegmentRow } from './types'
+import type { CanvasItem, SegmentRow } from './types'
 import { computeFooterStats } from './utils/stats'
 
 type RightPanel = 'none' | 'assistant' | 'insights'
 
 export default function App() {
   const [segmentName, setSegmentName] = useState('My awesome segment')
-  const [rows, setRows] = useState<SegmentRow[]>([])
+  const [rows, setRows] = useState<CanvasItem[]>([])
   const [operators, setOperators] = useState<('and' | 'or')[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [panel, setPanel] = useState<RightPanel>('none')
   const [assetPickerOpen, setAssetPickerOpen] = useState(false)
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
-  const stats = useMemo(() => computeFooterStats(rows), [rows])
+  const stats = useMemo(() => computeFooterStats(rows, operators), [rows, operators])
   const canBuild = rows.length > 0
+  const addedTitles = useMemo(
+    () => rows.flatMap((item) => item.kind === 'group' ? item.children.map((c) => c.title) : [item.title]),
+    [rows],
+  )
   const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -48,23 +55,10 @@ export default function App() {
   ) {
     if (action === 'include-rule') setAssetPickerOpen(true)
     if (action === 'include-group') {
-      const id = crypto.randomUUID()
+      const groupId = crypto.randomUUID()
       const hadRows = rows.length > 0
-      setRows((r) => [
-        ...r,
-        {
-          id,
-          kind: 'criteria',
-          title: 'Item equal or greater than 100',
-          tags: [
-            { label: 'My Data', variant: 'source' },
-            { label: 'Built segment', variant: 'extra' },
-            { label: 'CPM: $2,25', variant: 'cost' },
-          ],
-        },
-      ])
+      setRows((r) => [...r, { id: groupId, kind: 'group', children: [], operators: [] }])
       if (hadRows) setOperators((o) => [...o, 'and'])
-      setSelectedId(id)
     }
   }
 
@@ -80,13 +74,52 @@ export default function App() {
     if (selectedId === id) setSelectedId(null)
   }
 
+  function handleRemoveGroup(groupId: string) {
+    const index = rows.findIndex((r) => r.id === groupId)
+    setRows((r) => r.filter((item) => item.id !== groupId))
+    setOperators((ops) => {
+      const next = [...ops]
+      if (index > 0) next.splice(index - 1, 1)
+      else if (next.length > 0) next.splice(0, 1)
+      return next
+    })
+  }
+
+  function handleRemoveChild(groupId: string, childId: string) {
+    setRows((prev) =>
+      prev.flatMap((item) => {
+        if (item.kind !== 'group' || item.id !== groupId) return [item]
+        const index = item.children.findIndex((c) => c.id === childId)
+        const remaining = item.children.filter((c) => c.id !== childId)
+        if (remaining.length === 0) return []
+        const newOps = [...item.operators]
+        if (index > 0) newOps.splice(index - 1, 1)
+        else if (newOps.length > 0) newOps.splice(0, 1)
+        return [{ ...item, children: remaining, operators: newOps }]
+      }),
+    )
+    if (selectedId === childId) setSelectedId(null)
+  }
+
+  function handleUpdateGroupOperator(groupId: string, index: number, value: 'and' | 'or') {
+    setRows((prev) =>
+      prev.map((item) => {
+        if (item.kind !== 'group' || item.id !== groupId) return item
+        const newOps = [...item.operators]
+        newOps[index] = value
+        return { ...item, operators: newOps }
+      }),
+    )
+  }
+
   function handleTurnIntoGroup(id: string) {
     setRows((r) =>
-      r.map((row) =>
-        row.id === id
+      r.map((row): CanvasItem =>
+        row.id === id && row.kind !== 'group'
           ? {
               ...row,
-              kind: 'criteria',
+              kind: 'criteria' as const,
+              title: row.title,
               tags: [
                 { label: 'My Data', variant: 'source' },
                 { label: 'Built segment', variant: 'extra' },
@@ -101,23 +134,38 @@ export default function App() {
   function handleConfirmAsset(title: string, tags: SegmentRow['tags']) {
     const id = crypto.randomUUID()
     const newRow: SegmentRow = { id, kind: 'asset', title, tags }
-    const hadRows = rows.length > 0
-    setRows((r) => [...r, newRow])
-    if (hadRows) setOperators((o) => [...o, 'and'])
+    if (activeGroupId) {
+      setRows((prev) =>
+        prev.map((item) =>
+          item.kind === 'group' && item.id === activeGroupId
+            ? {
+                ...item,
+                children: [...item.children, newRow],
+                operators: item.children.length > 0 ? [...item.operators, 'and'] : item.operators,
+              }
+            : item,
+        ),
+      )
+      setActiveGroupId(null)
+    } else {
+      const hadRows = rows.length > 0
+      setRows((r) => [...r, newRow])
+      if (hadRows) setOperators((o) => [...o, 'and'])
+    }
     setSelectedId(id)
     setAssetPickerOpen(false)
   }
 
   return (
     <div className="flex h-screen min-h-0 bg-[#f3f4f6] text-gray-900">
-      <Sidebar />
+      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed((v) => !v)} />
 
       <div className="flex min-w-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="border-b border-gray-200 bg-white px-8 pb-4 pt-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-gray-900">
+                <h1 className="text-[32px] font-semibold tracking-tight text-gray-900">
                   Segment Builder
                 </h1>
                 <p className="mt-1 max-w-2xl text-sm text-gray-500">
@@ -150,7 +198,7 @@ export default function App() {
             </div>
 
             <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-              <div className="min-w-[240px] max-w-xl flex-1">
+              <div className="min-w-[240px] max-w-[426px] flex-1">
                 <label htmlFor="segment-name" className="text-xs font-medium text-gray-700">
                   Segment Name
                 </label>
@@ -191,8 +239,8 @@ export default function App() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-8 py-6">
-            {rows.map((row, index) => (
-              <div key={row.id} className={index === 0 ? '' : 'mt-3'}>
+            {rows.map((item, index) => (
+              <div key={item.id} className={index === 0 ? '' : 'mt-3'}>
                 {index > 0 && (
                   <div className="mb-3 flex justify-start">
                     <LogicOperator
@@ -201,13 +249,28 @@ export default function App() {
                     />
                   </div>
                 )}
-                <AssetCard
-                  row={row}
-                  selected={selectedId === row.id}
-                  onSelect={() => setSelectedId(row.id)}
-                  onRemove={() => handleRemoveRow(row.id)}
-                  onTurnIntoGroup={() => handleTurnIntoGroup(row.id)}
-                />
+                {item.kind === 'group' ? (
+                  <GroupCard
+                    group={item}
+                    selectedId={selectedId}
+                    onSelectChild={(id) => setSelectedId(id)}
+                    onRemoveChild={handleRemoveChild}
+                    onRemoveGroup={handleRemoveGroup}
+                    onAddRule={(groupId) => {
+                      setActiveGroupId(groupId)
+                      setAssetPickerOpen(true)
+                    }}
+                    onUpdateOperator={handleUpdateGroupOperator}
+                  />
+                ) : (
+                  <AssetCard
+                    row={item}
+                    selected={selectedId === item.id}
+                    onSelect={() => setSelectedId(item.id)}
+                    onRemove={() => handleRemoveRow(item.id)}
+                    onTurnIntoGroup={() => handleTurnIntoGroup(item.id)}
+                  />
+                )}
               </div>
             ))}
 
@@ -221,6 +284,7 @@ export default function App() {
                   open
                   onClose={() => setAssetPickerOpen(false)}
                   onConfirm={handleConfirmAsset}
+                  addedTitles={addedTitles}
                 />
               </div>
             )}

@@ -1,4 +1,4 @@
-import { ChevronDown, Info, PieChart, Plus, RefreshCw, Search, X } from 'lucide-react'
+import { ChevronDown, Info, PieChart, RefreshCw, Search, X } from 'lucide-react'
 import { useState } from 'react'
 
 type Tab = 'details' | 'split' | 'overlaps'
@@ -39,17 +39,16 @@ const platforms = [
 
 export function InsightsPanel({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>('details')
-  const [permittedOpen, setPermittedOpen] = useState(false)
+  const [permittedOpen, setPermittedOpen] = useState(true)
   const [platformSearch, setPlatformSearch] = useState('')
-  const [splitEnabled, setSplitEnabled] = useState(true)
+  const [splitEnabled, setSplitEnabled] = useState(false)
   const [splitCount, setSplitCount] = useState('2')
   const [splitNames, setSplitNames] = useState([
     'Potential_Car_Buyers_Test',
     'Potential_Car_Buyers_Control',
   ])
   const [splitPcts, setSplitPcts] = useState([50, 50])
-  const [overlapIds, setOverlapIds] = useState<string[]>(['s1', 's2'])
-  const [overlapSearch, setOverlapSearch] = useState('')
+  const [overlapIds, setOverlapIds] = useState<string[]>([])
 
   const filteredPlatforms = platforms.filter((p) =>
     p.toLowerCase().includes(platformSearch.toLowerCase()),
@@ -91,7 +90,7 @@ export function InsightsPanel({ onClose }: Props) {
           {(
             [
               ['details', 'Details'],
-              ['split', 'Split Segment'],
+              ['split', 'Test and Control'],
               ['overlaps', 'Data Overlaps'],
             ] as const
           ).map(([id, label]) => (
@@ -273,10 +272,7 @@ export function InsightsPanel({ onClose }: Props) {
         {/* ── Data Overlaps ── */}
         {tab === 'overlaps' && (() => {
           const selected = availableSegments.filter((s) => overlapIds.includes(s.id))
-          const unselected = availableSegments.filter(
-            (s) => !overlapIds.includes(s.id) &&
-              s.label.toLowerCase().includes(overlapSearch.toLowerCase()),
-          )
+          const unselected = availableSegments.filter((s) => !overlapIds.includes(s.id))
           const avgOverlap = selected.length
             ? Math.round(selected.reduce((a, s) => a + s.overlapPct, 0) / selected.length)
             : 0
@@ -301,34 +297,19 @@ export function InsightsPanel({ onClose }: Props) {
               {/* Add segment */}
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Compare against</p>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search segments to compare..."
-                    value={overlapSearch}
-                    onChange={(e) => setOverlapSearch(e.target.value)}
-                    className="w-full rounded-md border border-gray-200 bg-white py-2 pl-8 pr-3 text-sm placeholder:text-gray-400 focus:border-[#00c853] focus:outline-none focus:ring-1 focus:ring-[#00c853]"
-                  />
-                </div>
-                {overlapSearch && unselected.length > 0 && (
-                  <div className="mt-1 rounded-md border border-gray-200 bg-white shadow-sm">
-                    {unselected.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => { setOverlapIds((p) => [...p, s.id]); setOverlapSearch('') }}
-                        className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <span className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                          {s.label}
-                        </span>
-                        <Plus className="h-3.5 w-3.5 text-gray-400" />
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const id = e.target.value
+                    if (id && !overlapIds.includes(id)) setOverlapIds((p) => [...p, id])
+                  }}
+                  className="w-full rounded-md border border-gray-200 bg-white py-2 pl-3 pr-8 text-sm text-gray-700 focus:border-[#00c853] focus:outline-none focus:ring-1 focus:ring-[#00c853]"
+                >
+                  <option value="">Add segment to compare…</option>
+                  {unselected.map((s) => (
+                    <option key={s.id} value={s.id}>{s.label}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Overlap cards */}

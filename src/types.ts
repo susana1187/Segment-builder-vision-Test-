@@ -11,3 +11,12 @@ export interface SegmentRow {
   title: string
   tags: AssetTag[]
 }
+
+export interface SegmentGroup {
+  id: string
+  kind: 'group'
+  children: SegmentRow[]
+  operators: ('and' | 'or')[]
+}
+
+export type CanvasItem = SegmentRow | SegmentGroup

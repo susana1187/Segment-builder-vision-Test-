@@ -310,9 +310,10 @@ type Props = {
   open: boolean
   onClose: () => void
   onConfirm: (title: string, tags: { label: string; variant: TagVariant }[]) => void
+  addedTitles?: string[]
 }
 
-export function AssetPickerModal({ open, onClose, onConfirm }: Props) {
+export function AssetPickerModal({ open, onClose, onConfirm, addedTitles = [] }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [overviewOpen, setOverviewOpen] = useState(false)
@@ -397,22 +398,31 @@ export function AssetPickerModal({ open, onClose, onConfirm }: Props) {
 
                 {isExpanded && (
                   <ul>
-                    {branch.children.map((leaf) => (
-                      <li key={leaf.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedId(leaf.id)}
-                          className={`flex w-full items-center gap-2 py-2 pl-10 pr-4 text-left text-sm leading-snug ${
-                            selectedId === leaf.id
-                              ? 'bg-gray-100 text-gray-900'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          <PieChart className="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                          <span>{leaf.label}</span>
-                        </button>
-                      </li>
-                    ))}
+                    {branch.children.map((leaf) => {
+                      const alreadyAdded = addedTitles.includes(leaf.label)
+                      return (
+                        <li key={leaf.id}>
+                          <button
+                            type="button"
+                            disabled={alreadyAdded}
+                            onClick={() => !alreadyAdded && setSelectedId(leaf.id)}
+                            className={`flex w-full items-center gap-2 py-2 pl-10 pr-4 text-left text-sm leading-snug ${
+                              alreadyAdded
+                                ? 'cursor-not-allowed text-gray-300'
+                                : selectedId === leaf.id
+                                ? 'bg-gray-100 text-gray-900'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <PieChart className="h-3.5 w-3.5 shrink-0 text-gray-300" />
+                            <span className="flex-1">{leaf.label}</span>
+                            {alreadyAdded && (
+                              <span className="shrink-0 text-[10px] text-gray-300">Added</span>
+                            )}
+                          </button>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -502,7 +512,7 @@ export function AssetPickerModal({ open, onClose, onConfirm }: Props) {
         </button>
         <button
           type="button"
-          disabled={!selected}
+          disabled={!selected || addedTitles.includes(selected?.label ?? '')}
           onClick={() => {
             if (selected) {
               onConfirm(
